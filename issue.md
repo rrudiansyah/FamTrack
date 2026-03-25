@@ -1,159 +1,102 @@
-# Issue: Implementasi Fitur Registrasi Pengguna & Login
- 
- ## Deskripsi
- Dibutuhkan sebuah API untuk melakukan registrasi pengguna baru dan juga login pengguna. Fitur ini meliputi pembuatan database, tabel pengguna (`users`), tabel sesi (`sessions`), dan endpoint API menggunakan framework ElysiaJS.
- 
- ## 1. Spesifikasi Database & Tabel
- - **Nama Database:** `farmtrack_db`
- - **Tabel Utama:** `users`
- - **Tabel Baru:** `sessions`
- 
- **Schema Tabel `users`:**
- - `id`: `int` (Auto Increment, Primary Key)
- - `name`: `varchar(255)` (Not Null)
- - `email`: `varchar(255)` (Not Null, Unique)
- - `password`: `varchar(255)` (Not Null) -> *Harus berupa hash dari bcrypt*
- - `phone`: `varchar(255)` (Not Null)
- - `created_at`: `timestamp` (Default: `CURRENT_TIMESTAMP`)
- 
- **Schema Tabel `sessions`:**
- - `id`: `int` (Auto Increment, Primary Key)
- - `token`: `varchar(255)` (Not Null) -> *Isinya UUID untuk token user yang login*
- - `user_id`: `integer` (Foreign Key ke tabel `users`)
- - `created_at`: `timestamp` (Default: `CURRENT_TIMESTAMP`)
- 
- ## 2. Spesifikasi API Endpoint
- 
- ### A. Endpoint Registrasi
- - **Endpoint URL:** `POST /api/users`
- 
- **Request Body (JSON):**
- ```json
- {
-     "name": "eko",
-     "email": "eko@localhost",
-     "password": "rahasia",
-     "phone": "08123456"
- }
- ```
- 
- **Response Body - Success (200 / 201):**
- ```json
- {
-     "data": "Registrasi Berhasil"
- }
- ```
- 
- **Response Body - Error (400 / 409):**
- ```json
- {
-     "error": "Email sudah terdaftar"
- }
- ```
- 
- ### B. Endpoint Login
- - **Endpoint URL:** `POST /api/users/login`
- 
- **Request Body (JSON):**
- ```json
- {
-     "email": "eko@localhost",
-     "password": "rahasia"
- }
- ```
- 
- **Response Body - Success (200):**
- ```json
- {
-     "data": "token"
- }
- ```
- 
- **Response Body - Error (401 / 400):**
- ```json
- {
-     "error": "Email atau password salah"
- }
- ```
- 
- ## 3. Struktur File dan Folder
- Kode aplikasi harus ditempatkan di dalam folder `src` dengan struktur sebagai berikut:
- - **`src/routes/`**: Berisi definisi routing ElysiaJS untuk menangani HTTP request dan response.
-   - Nama file: `users-route.ts`
- - **`src/services/`**: Berisi business logic, seperti validasi data ekstra, hashing password, pengecekan password, pembuatan token, dan interaksi dengan database.
-   - Nama file: `users-service.ts`
- 
- ---
- 
- ## Tahapan Implementasi (Panduan untuk Junior Programmer / AI)
- 
- Untuk mengimplementasikan fitur **Login**, ikuti langkah-langkah sistematis berikut:
- 
- ### Langkah 1: Update Skema Database (Tabel Sessions)
- 1. Buka file definisi skema Drizzle ORM Anda (misalnya `src/db/schema.ts`).
- 2. Tambahkan definisi tabel baru `sessions` berdasarkan skema di atas (`id`, `token`, `user_id` FK ke users, `created_at`).
- 3. Jalankan perintah migrasi Drizzle untuk mengaplikasikan tabel ini ke database MySQL/PostgreSQL (misal: `bun run db:push`).
- 
- ### Langkah 2: Buat Business Logic Login di `src/services/users-service.ts`
- 1. Buka file `src/services/users-service.ts`.
- 2. Buat fungsi baru untuk proses login (misal: `loginUser(payload)`).
- 3. **Pengecekan User:** Lakukan query ke database `users` mencari user dengan email yang diberikan.
-    - Jika user tidak ditemukan, lempar error (throw error) dengan pesan `"Email atau password salah"`.
- 4. **Verifikasi Password:** Gunakan library bcrypt (atau `Bun.password.verify`) untuk membandingkan password dari request body (plain text) dengan password di database (hashed).
-    - Jika tidak cocok, lempar error dengan pesan `"Email atau password salah"`.
- 5. **Generate Token:** Buat UUID unik (menggunakan `crypto.randomUUID()` atau library sejenis) untuk sesi login ini.
- 6. **Simpan Sesi:** Insert record baru ke tabel `sessions` dengan `token` yang dibuat dan `user_id` dari user yang berhasil diverifikasi.
- 7. **Return Token:** Kembalikan nilai UUID token yang baru saja di-generate dari fungsi ini.
- 
- ### Langkah 3: Buat Endpoint Login di `src/routes/users-route.ts`
- 1. Buka file `src/routes/users-route.ts`.
- 2. Tambahkan endpoint baru dengan method `POST /api/users/login`.
- 3. **Validasi Request Body:** Gunakan tipe data / TypeBox (misal `t.Object`) untuk memastikan body request memiliki string `email` dan `password`.
- 4. **Panggil Service:** Di dalam handler block endpoint, bungkus pemanggilan menggunakan `try-catch`. Panggil fungsi `loginUser` yang dibuat pada Langkah 2.
- 5. **Tangani Response:**
-    - Jika di dalam `try` berhasil, kirimkan format respons json `{"data": "<token-dari-service>"}`.
-    - Jika masuk ke blok `catch` dan message errornya adalah "Email atau password salah", ubah status HTTP menjadi status Client Error (misal 401 Unauthorized atau 400 Bad Request) dan kirimkan respons `{"error": "Email atau password salah"}`.
- 
- ### Langkah 4: Testing Endpoint Login
- 1. Pastikan server Elysia berjalan (misal `bun run dev`).
- 2. Gunakan REST Client (Postman/Hoppscotch/cURL) untuk melakukan pengujian **POST** ke `http://localhost:<port>/api/users/login`.
- 3. Kirim kredensial (email & password) asalkan (salah), dan pastikan balikan response adalah 40X dengan body `{"error": "Email atau password salah"}`.
- 4. Kirim kredensial (email & password) yang valid. Pastikan respon adalah HTTP OK 200 dengan nilai UUID dari sesi tersebut di key `data`.
- 5. Verifikasi di *database (HeidiSQL/TablePlus)* bahwa terdapat entry baru di dalam tabel `sessions` dengan `token` dan `user_id` yang sesuai.
- 
- Untuk mengimplementasikan fitur **Registrasi**, ikuti langkah-langkah sistematis berikut:
- 
- ### Langkah 1: Persiapan Database (Schema & Migration)
- 1. Pastikan database `farmtrack_db` telah terbuat di MySQL/PostgreSQL (sesuai setup proyek).
- 2. Buat skema untuk tabel `users` (bisa menggunakan Drizzle ORM atau SQL biasa).
- 3. Pastikan kolom `email` memiliki konstrain `UNIQUE` agar database menolak duplikasi data secara natural.
- 4. Jalankan migrasi atau query pembuatan tabel di database.
- 
- ### Langkah 2: Buat Business Logic Registrasi di `src/services/users-service.ts`
- 1. Buat file `users-service.ts` di dalam folder `src/services/`.
- 2. Buat sebuah fungsi (misal: `registerUser(payload)`).
- 3. **Pengecekan Email:** Di dalam fungsi tersebut, query ke database untuk mencari user dengan email dari payload. Jika email sudah ada, lemparkan error (throw error) dengan pesan `"Email sudah terdaftar"`.
- 4. **Hashing Password:** Gunakan library bcrypt (misal `bun:password` atau package `bcryptjs`) untuk men-generate hash dari password asli (`plain text`).
- 5. **Simpan Data:** Lakukan operasi `INSERT` ke tabel `users` untuk menyimpan `name`, `email`, `hashed password`, dan `phone`. Kolom `created_at` akan terisi otomatis berdasarkan default database.
- 
- ### Langkah 3: Buat Endpoint Registrasi di `src/routes/users-route.ts`
- 1. Buat file `users-route.ts` di dalam folder `src/routes/`.
- 2. Import instance/plugin dari Elysia.
- 3. Definisikan endpoint `POST /api/users`.
- 4. **Validasi Request Body:** (Sangat Disarankan) Gunakan TypeBox (`t.Object` di Elysia) untuk memvalidasi bahwa payload yang diterima memiliki property `name`, `email`, `password`, dan `phone` dengan tipe data string.
- 5. **Panggil Service:** Di dalam handler, panggil fungsi `registerUser` dari `users-service.ts` yang dibuat pada Langkah 2, bungkus dengan blok `try-catch`.
- 6. **Assign Response:** 
-    - Jika berhasil (`try`), return object JSON `{"data": "Registrasi Berhasil"}`.
-    - Jika terjadi error (`catch`), tangkap error message-nya. Jika error berpesan "Email sudah terdaftar", atur status HTTP (misal 400 Bad Request) dan kembalikan JSON `{"error": "Email sudah terdaftar"}`.
- 
- ### Langkah 4: Registrasi Route di Main App (`src/index.ts`)
- 1. Buka file utama jalannya server (biasanya `src/index.ts`).
- 2. Import route dari `users-route.ts`.
- 3. Gunakan method `.use()` pada instance Elysia utama untuk mendaftarkan endpoint `/api/users` agar server dapat mengenalinya secara global.
- 
- ### Langkah 5: Testing Registrasi
- 1. Jalankan aplikasi (misal `bun run dev`).
- 2. Buka REST client seperti cURL, Postman, atau Hoppscotch.
- 3. Lakukan **POST request** ke `http://localhost:<port>/api/users` dengan JSON body yang valid. Pastikan mendapat balikan `"Registrasi Berhasil"`.
- 4. Cek database apakah data tersimpan dan password berbentuk *hash string*.
- 5. Ulangi request **POST** dengan email yang sama. Pastikan aplikasi tidak crash dan mendapat balikan `"Email sudah terdaftar"`.
+# Issue: Implementasi Endpoint Get Current User
+
+## Deskripsi
+Dibutuhkan sebuah API endpoint untuk mengambil data user yang saat ini sedang login (current user) berdasarkan token sesi (session token) yang dikirimkan melalui header `Authorization`.
+
+## Spesifikasi API Endpoint
+
+- **Endpoint URL:** `GET /api/users/current`
+
+**Headers Request:**
+- `Authorization`: Bearer `<token>`
+  *(Dimana `<token>` adalah token UUID yang tersimpan di tabel `sessions` saat proses login)*
+
+**Response Body - Success (200 OK):**
+```json
+{
+    "data": {
+        "id": 1,
+        "name": "eko",
+        "email": "eko@localhost",
+        "created_at": "timestamp"
+    }
+}
+```
+
+**Response Body - Error (401 Unauthorized):**
+*(Jika token tidak ada, tidak valid, atau sesi sudah kedaluwarsa/tidak ditemukan di database)*
+```json
+{
+    "error": "Unauthorized"
+}
+```
+
+## Struktur File dan Folder
+Kode aplikasi ditempatkan di dalam folder `src` dengan struktur sebagai berikut:
+- **`src/routes/`**: Berisi definisi routing ElysiaJS untuk menangani HTTP request dan response.
+  - Nama file target: `users-route.ts`
+- **`src/services/`**: Berisi business logic, interaksi database, dan validasi.
+  - Nama file target: `users-service.ts`
+
+---
+
+## Tahapan Implementasi (Panduan untuk Junior Programmer / AI)
+
+Untuk mengimplementasikan fitur **Get Current User**, ikuti langkah-langkah sistematis berikut:
+
+### Langkah 1: Buat Business Logic (Get Current User) di `src/services/users-service.ts`
+
+1. Buka file `src/services/users-service.ts`.
+2. Buat fungsi baru, misalnya `getCurrentUser(token: string)`.
+3. **Validasi Input:** Jika parameter `token` kosong, langsung *throw error* (misalnya throw Error('Unauthorized')).
+4. **Query Database:**
+   - Lakukan query ke database menggunakan Drizzle ORM.
+   - Anda perlu melakukan `JOIN` antara tabel `sessions` dan tabel `users`.
+   - Cari data `sessions` yang memiliki nilai `token` sama dengan string token yang diberikan.
+5. **Pengecekan Hasil Query:**
+   - Jika query tidak menemukan data sesi (artinya token tidak valid/tidak ada di DB), *throw error* dengan pesan `"Unauthorized"`.
+6. **Return Data:**
+   - Jika data ditemukan, kembalikan (return) informasi user (`id`, `name`, `email`, `created_at`) dalam format objek yang sesuai dengan spesifikasi response sukses:
+     ```typescript
+     {
+         data: {
+             id: user.id,
+             name: user.name,
+             email: user.email,
+             created_at: user.createdAt
+         }
+     }
+     ```
+
+### Langkah 2: Buat Endpoint API di `src/routes/users-route.ts`
+
+1. Buka file `src/routes/users-route.ts`.
+2. Tambahkan endpoint baru dengan method `GET /current` setelah definisi endpoint yang sudah ada.
+3. **Ekstrak Header Authorization:**
+   - Pada handler ElysiaJS, akses object `headers`.
+   - Ambil nilai dari header `authorization`. (Perhatikan bahwa header HTTP biasanya *case-insensitive* namun di library sering dibaca sebagai *lowercase* `authorization`).
+4. **Parsing Token Bearer:**
+   - Nilai header authorization biasanya formatnya `"Bearer <token>"`.
+   - Cek apakah header tersebut ada dan dimulai dengan kata `"Bearer "`.
+   - Ekstrak *string* token UUID-nya dari header tersebut (misal dengan membuang kata "Bearer " di depannya).
+   - Jika header tidak ada atau formatnya salah, kembalikan response status `401 Unauthorized` dengan object `{"error": "Unauthorized"}`.
+5. **Panggil Service:**
+   - Gunakan blok `try-catch`.
+   - Di dalam blok `try`, panggil fungsi `usersService.getCurrentUser(token)` yang dibuat pada Langkah 1.
+   - Kembalikan hasil (`result`) dari service tersebut ke client.
+6. **Tangani Response Error:**
+   - Di dalam blok `catch`, set HTTP status code menjadi `401 Unauthorized`.
+   - Kembalikan JSON body `{"error": "Unauthorized"}`.
+
+### Langkah 3: Testing Endpoint
+
+1. Pastikan server Elysia berjalan (misal `bun run dev`).
+2. Gunakan REST Client (Postman/Hoppscotch/cURL) untuk melakukan pengujian **GET** ke `http://localhost:<port>/api/users/current`.
+3. **Skenario Gagal:**
+   - Kirim *request* TANPA menyertakan header Authorization. Pastikan mendapat balikan HTTP status `401` dengan body `{"error": "Unauthorized"}`.
+   - Kirim *request* DENGAN menyertakan header Authorization dengan Bearer token sembarang ("Bearer token-ngasal-123"). Pastikan mendapat balikan HTTP status `401` dengan body `{"error": "Unauthorized"}`.
+4. **Skenario Sukses:**
+   - Dapatkan token valid dengan melakukan request login (`POST /api/users/login`) ke server.
+   - Ambil nilai token dari property `data` pada response body login.
+   - Kirim *request* **GET** ke `http://localhost:<port>/api/users/current` DENGAN menyertakan header `Authorization` bernilai `"Bearer <token-valid-tadi>"`.
+   - Pastikan mendapat balikan HTTP OK `200` dan body response berisi data user sesuai struktur yang ditentukan.
