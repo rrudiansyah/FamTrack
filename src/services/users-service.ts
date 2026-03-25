@@ -82,5 +82,23 @@ export const usersService = {
     }
 
     return { data: user };
+  },
+
+  async logoutUser(token: string) {
+    if (!token) {
+      throw new Error('Unauthorized');
+    }
+
+    const session = await db.query.sessions.findFirst({
+      where: eq(sessions.token, token),
+    });
+
+    if (!session) {
+      throw new Error('Unauthorized');
+    }
+
+    await db.delete(sessions).where(eq(sessions.token, token));
+
+    return { data: 'OK' };
   }
 };
