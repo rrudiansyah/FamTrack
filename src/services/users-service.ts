@@ -56,5 +56,31 @@ export const usersService = {
     });
 
     return { data: token };
+  },
+
+  async getCurrentUser(token: string) {
+    if (!token) {
+      throw new Error('Unauthorized');
+    }
+
+    const result = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        createdAt: users.createdAt,
+      })
+      .from(sessions)
+      .innerJoin(users, eq(sessions.userId, users.id))
+      .where(eq(sessions.token, token))
+      .limit(1);
+
+    const user = result[0];
+
+    if (!user) {
+      throw new Error('Unauthorized');
+    }
+
+    return { data: user };
   }
 };
