@@ -1,5 +1,5 @@
 {
-  "name": "famtrack",
+  "name": "famtrack", 123
   "module": "index.ts",
   "type": "module",
   "private": true,

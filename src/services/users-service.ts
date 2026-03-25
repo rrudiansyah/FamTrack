@@ -58,4 +58,3 @@ export const usersService = {
     return { data: token };
   }
 };
-

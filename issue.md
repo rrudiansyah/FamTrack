@@ -120,3 +120,40 @@
  3. Kirim kredensial (email & password) asalkan (salah), dan pastikan balikan response adalah 40X dengan body `{"error": "Email atau password salah"}`.
  4. Kirim kredensial (email & password) yang valid. Pastikan respon adalah HTTP OK 200 dengan nilai UUID dari sesi tersebut di key `data`.
  5. Verifikasi di *database (HeidiSQL/TablePlus)* bahwa terdapat entry baru di dalam tabel `sessions` dengan `token` dan `user_id` yang sesuai.
+ 
+ Untuk mengimplementasikan fitur **Registrasi**, ikuti langkah-langkah sistematis berikut:
+ 
+ ### Langkah 1: Persiapan Database (Schema & Migration)
+ 1. Pastikan database `farmtrack_db` telah terbuat di MySQL/PostgreSQL (sesuai setup proyek).
+ 2. Buat skema untuk tabel `users` (bisa menggunakan Drizzle ORM atau SQL biasa).
+ 3. Pastikan kolom `email` memiliki konstrain `UNIQUE` agar database menolak duplikasi data secara natural.
+ 4. Jalankan migrasi atau query pembuatan tabel di database.
+ 
+ ### Langkah 2: Buat Business Logic Registrasi di `src/services/users-service.ts`
+ 1. Buat file `users-service.ts` di dalam folder `src/services/`.
+ 2. Buat sebuah fungsi (misal: `registerUser(payload)`).
+ 3. **Pengecekan Email:** Di dalam fungsi tersebut, query ke database untuk mencari user dengan email dari payload. Jika email sudah ada, lemparkan error (throw error) dengan pesan `"Email sudah terdaftar"`.
+ 4. **Hashing Password:** Gunakan library bcrypt (misal `bun:password` atau package `bcryptjs`) untuk men-generate hash dari password asli (`plain text`).
+ 5. **Simpan Data:** Lakukan operasi `INSERT` ke tabel `users` untuk menyimpan `name`, `email`, `hashed password`, dan `phone`. Kolom `created_at` akan terisi otomatis berdasarkan default database.
+ 
+ ### Langkah 3: Buat Endpoint Registrasi di `src/routes/users-route.ts`
+ 1. Buat file `users-route.ts` di dalam folder `src/routes/`.
+ 2. Import instance/plugin dari Elysia.
+ 3. Definisikan endpoint `POST /api/users`.
+ 4. **Validasi Request Body:** (Sangat Disarankan) Gunakan TypeBox (`t.Object` di Elysia) untuk memvalidasi bahwa payload yang diterima memiliki property `name`, `email`, `password`, dan `phone` dengan tipe data string.
+ 5. **Panggil Service:** Di dalam handler, panggil fungsi `registerUser` dari `users-service.ts` yang dibuat pada Langkah 2, bungkus dengan blok `try-catch`.
+ 6. **Assign Response:** 
+    - Jika berhasil (`try`), return object JSON `{"data": "Registrasi Berhasil"}`.
+    - Jika terjadi error (`catch`), tangkap error message-nya. Jika error berpesan "Email sudah terdaftar", atur status HTTP (misal 400 Bad Request) dan kembalikan JSON `{"error": "Email sudah terdaftar"}`.
+ 
+ ### Langkah 4: Registrasi Route di Main App (`src/index.ts`)
+ 1. Buka file utama jalannya server (biasanya `src/index.ts`).
+ 2. Import route dari `users-route.ts`.
+ 3. Gunakan method `.use()` pada instance Elysia utama untuk mendaftarkan endpoint `/api/users` agar server dapat mengenalinya secara global.
+ 
+ ### Langkah 5: Testing Registrasi
+ 1. Jalankan aplikasi (misal `bun run dev`).
+ 2. Buka REST client seperti cURL, Postman, atau Hoppscotch.
+ 3. Lakukan **POST request** ke `http://localhost:<port>/api/users` dengan JSON body yang valid. Pastikan mendapat balikan `"Registrasi Berhasil"`.
+ 4. Cek database apakah data tersimpan dan password berbentuk *hash string*.
+ 5. Ulangi request **POST** dengan email yang sama. Pastikan aplikasi tidak crash dan mendapat balikan `"Email sudah terdaftar"`.
