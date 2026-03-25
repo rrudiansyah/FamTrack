@@ -1,0 +1,91 @@
+# Issue: Implementasi Fitur Registrasi Pengguna (User Registration)
+
+## Deskripsi
+Dibutuhkan sebuah API untuk melakukan registrasi pengguna baru. Fitur ini meliputi pembuatan database, tabel pengguna (`users`), dan endpoint API menggunakan framework ElysiaJS.
+
+## 1. Spesifikasi Database & Tabel
+- **Nama Database:** `farmtrack_db`
+- **Nama Tabel:** `users`
+
+**Schema Tabel `users`:**
+- `id`: `int` (Auto Increment, Primary Key)
+- `name`: `varchar(255)` (Not Null)
+- `email`: `varchar(255)` (Not Null, Unique)
+- `password`: `varchar(255)` (Not Null) -> *Harus berupa hash dari bcrypt*
+- `phone`: `varchar(255)` (Not Null)
+- `created_at`: `timestamp` (Default: `CURRENT_TIMESTAMP`)
+
+## 2. Spesifikasi API Endpoint
+- **Endpoint URL:** `POST /api/users`
+
+**Request Body (JSON):**
+```json
+{
+    "name": "eko",
+    "email": "eko@localhost",
+    "password": "rahasia",
+    "phone": "08123456"
+}
+```
+
+**Response Body - Success (200 / 201):**
+```json
+{
+    "data": "Registrasi Berhasil"
+}
+```
+
+**Response Body - Error (400 / 409):**
+```json
+{
+    "error": "Email sudah terdaftar"
+}
+```
+
+## 3. Struktur File dan Folder
+Kode aplikasi harus ditempatkan di dalam folder `src` dengan struktur sebagai berikut:
+- **`src/routes/`**: Berisi definisi routing ElysiaJS untuk menangani HTTP request dan response.
+  - Nama file: `users-route.ts`
+- **`src/services/`**: Berisi business logic, seperti validasi data ekstra, hashing password, dan interaksi dengan database.
+  - Nama file: `users-service.ts`
+
+---
+
+## Tahapan Implementasi (Panduan untuk Junior Programmer / AI)
+
+Untuk mengimplementasikan fitur ini, ikuti langkah-langkah sistematis berikut:
+
+### Langkah 1: Persiapan Database (Schema & Migration)
+1. Pastikan database `farmtrack_db` telah terbuat di MySQL/PostgreSQL (sesuai setup proyek).
+2. Buat skema untuk tabel `users` (bisa menggunakan Drizzle ORM atau SQL biasa).
+3. Pastikan kolom `email` memiliki konstrain `UNIQUE` agar database menolak duplikasi data secara natural.
+4. Jalankan migrasi atau query pembuatan tabel di database.
+
+### Langkah 2: Buat Business Logic di `src/services/users-service.ts`
+1. Buat file `users-service.ts` di dalam folder `src/services/`.
+2. Buat sebuah fungsi (misal: `registerUser(payload)`).
+3. **Pengecekan Email:** Di dalam fungsi tersebut, query ke database untuk mencari user dengan email dari payload. Jika email sudah ada, lemparkan error (throw error) dengan pesan `"Email sudah terdaftar"`.
+4. **Hashing Password:** Gunakan library bcrypt (misal `bun:password` atau package `bcryptjs`) untuk men-generate hash dari password asli (`plain text`).
+5. **Simpan Data:** Lakukan operasi `INSERT` ke tabel `users` untuk menyimpan `name`, `email`, `hashed password`, dan `phone`. Kolom `created_at` akan terisi otomatis berdasarkan default database.
+
+### Langkah 3: Buat Endpoint API di `src/routes/users-route.ts`
+1. Buat file `users-route.ts` di dalam folder `src/routes/`.
+2. Import instance/plugin dari Elysia.
+3. Definisikan endpoint `POST /api/users`.
+4. **Validasi Request Body:** (Sangat Disarankan) Gunakan TypeBox (`t.Object` di Elysia) untuk memvalidasi bahwa payload yang diterima memiliki property `name`, `email`, `password`, dan `phone` dengan tipe data string.
+5. **Panggil Service:** Di dalam handler, panggil fungsi `registerUser` dari `users-service.ts` yang dibuat pada Langkah 2, bungkus dengan blok `try-catch`.
+6. **Assign Response:** 
+   - Jika berhasil (`try`), return object JSON `{"data": "Registrasi Berhasil"}`.
+   - Jika terjadi error (`catch`), tangkap error message-nya. Jika error berpesan "Email sudah terdaftar", atur status HTTP (misal 400 Bad Request) dan kembalikan JSON `{"error": "Email sudah terdaftar"}`.
+
+### Langkah 4: Registrasi Route di Main App (`src/index.ts`)
+1. Buka file utama jalannya server (biasanya `src/index.ts`).
+2. Import route dari `users-route.ts`.
+3. Gunakan method `.use()` pada instance Elysia utama untuk mendaftarkan endpoint `/api/users` agar server dapat mengenalinya secara global.
+
+### Langkah 5: Testing
+1. Jalankan aplikasi (misal `bun run dev`).
+2. Buka REST client seperti cURL, Postman, atau Hoppscotch.
+3. Lakukan **POST request** ke `http://localhost:<port>/api/users` dengan JSON body yang valid. Pastikan mendapat balikan `"Registrasi Berhasil"`.
+4. Cek database apakah data tersimpan dan password berbentuk *hash string*.
+5. Ulangi request **POST** dengan email yang sama. Pastikan aplikasi tidak crash dan mendapat balikan `"Email sudah terdaftar"`.
