@@ -22,6 +22,17 @@ export const usersRoute = new Elysia({ prefix: '/api/users' })
       password: t.String(),
       phone: t.String(),
     }),
+    response: {
+      201: t.Object({
+        data: t.String()
+      }),
+      400: t.Object({
+        error: t.String()
+      }),
+      500: t.Object({
+        error: t.String()
+      })
+    },
     detail: {
       tags: ['Users'],
       summary: 'Registrasi User Baru',
@@ -46,6 +57,17 @@ export const usersRoute = new Elysia({ prefix: '/api/users' })
       email: t.String({ format: 'email' }),
       password: t.String(),
     }),
+    response: {
+      200: t.Object({
+        data: t.String()
+      }),
+      401: t.Object({
+        error: t.String()
+      }),
+      500: t.Object({
+        error: t.String()
+      })
+    },
     detail: {
       tags: ['Users'],
       summary: 'Login User',
@@ -67,10 +89,24 @@ export const usersRoute = new Elysia({ prefix: '/api/users' })
       return { error: 'Unauthorized' };
     }
   }, {
+    response: {
+      200: t.Object({
+        data: t.Object({
+          id: t.Number(),
+          name: t.String(),
+          email: t.String(),
+          createdAt: t.Any(),
+        })
+      }),
+      401: t.Object({
+        error: t.String()
+      })
+    },
     detail: {
       tags: ['Users'],
       summary: 'Ambil Profil User Aktif',
-      description: 'Mendapatkan data profil user berdasarkan token sesi.'
+      description: 'Mendapatkan data profil user berdasarkan token sesi.',
+      security: [{ bearerAuth: [] }]
     }
   })
   .delete('/logout', async ({ token, set }) => {
@@ -82,10 +118,19 @@ export const usersRoute = new Elysia({ prefix: '/api/users' })
       return { error: 'Unauthorized' };
     }
   }, {
+    response: {
+      200: t.Object({
+        data: t.String()
+      }),
+      401: t.Object({
+        error: t.String()
+      })
+    },
     detail: {
       tags: ['Users'],
       summary: 'Logout User',
-      description: 'Mengakhiri sesi dan menghapus token dari database.'
+      description: 'Mengakhiri sesi dan menghapus token dari database.',
+      security: [{ bearerAuth: [] }]
     }
   });
 

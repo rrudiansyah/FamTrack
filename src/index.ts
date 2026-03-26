@@ -9,6 +9,15 @@ export const app = new Elysia()
         title: 'FamTrack API',
         version: '1.0.0',
         description: 'Mencatat aktivitas keluarga'
+      },
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT'
+          }
+        }
       }
     }
   }))
