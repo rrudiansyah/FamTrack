@@ -1,50 +1,40 @@
-# Bug: Error 500 saat Registrasi dengan Nama Lebih dari 255 Karakter
+# Perencanaan: Pembuatan Unit Test API (ElysiaJS & Bun Test)
 
-## Deskripsi Masalah
+## Deskripsi Tugas
+Dibutuhkan implementasi *Unit Testing* yang komprehensif untuk seluruh API endpoint yang sudah tersedia di aplikasi FamTrack. Pengujian ini bertujuan untuk memastikan semua fungsionalitas utama (*registration, login, get current user, logout*) berjalan dengan stabil dan sesuai ekspektasi ketika menerima berbagai *input*, baik yang *valid* maupun *invalid*.
 
-Saat ini, jika seorang pengguna mencoba melakukan registrasi (`POST /api/users`) dan memasukkan *field* `name` yang panjangnya melebihi 255 karakter, *server* akan memunculkan respons **HTTP 500 Internal Server Error** dengan pesan `"Terjadi kesalahan pada server"`. 
-
-Hal ini disebabkan karena pada definisi *schema* database (`src/db/schema.ts`), kolom `name` telah ditentukan sebagai `varchar(255)`. Ketika string dengan panjang lebih dari 255 karakter dikirim untuk di-insert, *database* (MySQL) akan menolak proses *insert* (`Data too long for column 'name'`), yang menyebabkan fungsi tersebut *crash* dan ditangkap oleh blok `catch` secara umum sehingga menghasilkan *error* HTTP 500.
-
-Seharusnya, validasi dilakukan di tingkat rute API (Elysia) sebelum menyentuh layer *database*. Jika nilai `name` terlalu panjang, API harus mengembalikan _client error_ (seperti `422 Unprocessable Entity` atau `400 Bad Request`) sehingga penanganannya lebih jelas baik bagi *frontend* maupun penggunanya.
-
-## Ekspetasi (Expected Behavior)
-1. Permintaan pendaftaran dengan atribut `name` > 255 karakter harus langsung ditolak sebelum query DB dieksekusi.
-2. Respons HTTP harus berupa status `400` atau `422` yang menandakan *error* validasi input dari *client*.
-
-## Struktur Folder Pekerjaan
-- `src/routes/users-route.ts` (File tempat validasi didefinisikan)
+## Persyaratan Teknis
+- **Lokasi File Test:** Semua file test harus diletakkan di dalam folder `tests/` di *root* proyek.
+- **Framework Test:** Menggunakan standar bawaan Bun yaitu `bun:test` (via command `bun test`).
+- **Data Konsisten:** **Penting!** Sebelum menjalankan setiap kode skenario pengujian, data pada *database* (seperti tabel `users` dan `sessions`) **harus dihapus terlebih dahulu** (bisa menggunakan *hooks* `beforeEach` atau aksi spesifik pada tiap test) agar pengujian satu dengan yang lainnya tidak saling bertabrakan dan menjamin konsistensi *state*.
 
 ---
 
-## Tahapan Penyelesaian (Panduan untuk Junior Programmer / AI)
+## Daftar Skenario Pengujian yang Harus Diimplementasikan
 
-Untuk memperbaiki masalah ini, ikuti langkah-langkah di bawah ini:
+Berikut adalah daftar skenario yang harus di-_cover_ oleh *programmer* yang akan mengerjakan tiket ini. **Tidak perlu panduan kode detail**, cukup penuhi skenario-skenario berikut menggunakan fungsi bawaan `fetch`/App Elysia:
 
-### Langkah 1: Tambahkan Validasi pada Router Elysia
-1. Buka file `src/routes/users-route.ts`.
-2. Cari definisi *endpoint* untuk registrasi yaitu baris kode yang berbunyi `post('/', async ({ body, set }) => { ... })`.
-3. Di akhir deklarasi *endpoint* tersebut, kamu akan menemukan bagian definisi parameter *body* yang menggunakan Elysia TypeBox (`t.Object`).
-4. Pada properti `name`, ubah validasi dari `t.String()` menjadi `t.String({ maxLength: 255 })`.
-5. Opsional namun disarankan: Jika dirasa perlu, tambahkan opsi `maxLength` juga pada opsi string lain (sesuai panjang di *database schema* jika relevan).
+### 1. API: Registrasi User (`POST /api/users`)
+- **[ ] Skenario Sukses:** Mendaftar dengan data lengkap dan nama maksimal 255 karakter. (Ekspektasi: HTTP 201)
+- **[ ] Skenario Gagal (Email Kembar):** Mendaftar menggunakan email yang sudah ada di database. (Ekspektasi: HTTP 400 - "Email sudah terdaftar")
+- **[ ] Skenario Gagal (Validasi Nama >255 Karakter):** Mendaftar dengan panjang karakter `name` melebihi 255 karakter. (Ekspektasi: HTTP 422 - validasi error).
+- **[ ] Skenario Gagal (Validasi Email Invalid):** Mendaftar dengan format email yang salah. (Ekspektasi: HTTP 422 - validasi error).
+- **[ ] Skenario Gagal (Payload Kosong/Kurang):** Mengirim *request body* tanpa salah satu properti wajib (misal tanpa `password`). (Ekspektasi: HTTP 422 - validasi error).
 
-*Contoh implementasi perbaikan pada blok akhir router registrasi:*
+### 2. API: Login User (`POST /api/users/login`)
+- **[ ] Skenario Sukses:** Login menggunakan *email* dan *password* yang benar. Pastikan respon berisi *token JWT/UUID*. (Ekspektasi: HTTP 200)
+- **[ ] Skenario Gagal (Email Tidak Ditemukan):** Login dengan email yang belum pernah didaftarkan. (Ekspektasi: HTTP 401 - "Email atau password salah")
+- **[ ] Skenario Gagal (Password Salah):** Login dengan email yang terdaftar tapi password salah. (Ekspektasi: HTTP 401 - "Email atau password salah")
+- **[ ] Skenario Gagal (Invalid Payload):** Mengirim payload login tanpa format *email* yang benar. (Ekspektasi: HTTP 422 - validasi error).
 
-```typescript
-  body: t.Object({
-    name: t.String({ maxLength: 255 }), // Tambahkan aturan panjang maksimum
-    email: t.String({ format: 'email' }),
-    password: t.String(),
-    phone: t.String(),
-  })
-```
+### 3. API: Dapatkan User Saat Ini (`GET /api/users/current`)
+- **[ ] Skenario Sukses:** Meminta data user lengkap dengan *header* `Authorization: Bearer <token-asli>` setelah berhasil login. (Ekspektasi: HTTP 200 dengan data user dikembalikan)
+- **[ ] Skenario Gagal (Tanpa Header Auth):** Meminta data tanpa mengirimkan header `Authorization` sama sekali. (Ekspektasi: HTTP 401 - "Unauthorized")
+- **[ ] Skenario Gagal (Token Tidak Valid / Kedaluwarsa):** Meminta data dengan header `Authorization: Bearer <token-acak-salah>`. (Ekspektasi: HTTP 401 - "Unauthorized")
+- **[ ] Skenario Gagal (Format Header Salah):** Mengirim token tanpa awalan "Bearer " (contoh: `Authorization: <token>`). (Ekspektasi: HTTP 401 - "Unauthorized")
 
-### Langkah 2: Lakukan Pengujian Validasi
-1. Pastikan *server* berhasil berjalan lokal (`bun run dev`).
-2. Gunakan *tool* API testing (cURL, Postman, REST Client, atau via skrip *fetch*).
-3. **Coba Skenario Gagal (Invalid):**
-   Lakukan request `POST http://localhost:3000/api/users` dengan parameter `name` berisikan lebih dari 255 karakter (misal string "A" sebanyak 300 kali).
-   - Server **TIDAK BOLEH** mengembalikan status HTTP 500.
-   - Server harus mengembalikan status `422` (default Elysia error status) berisikan struktur JSON penjelasan bahwa validasi `name` telah gagal ("Expected string length less or equal to 255").
-4. **Coba Skenario Sukses (Valid):**
-   Lakukan request dengan `name` yang valid (<= 255 karakter). Pastikan proses pendaftaran berjalan sukses dan mendapatkan status `201 Created`.
+### 4. API: Logout User (`DELETE /api/users/logout`)
+- **[ ] Skenario Sukses:** Melakukan aksi logout menggunakan token yang baru saja dibuat saat login. Memastikan balikan sukses, dan *record session* divalidasi kehapus dari tabel database. (Ekspektasi: HTTP 200 - "OK")
+- **[ ] Skenario Gagal (Double Logout):** Melakukan aksi logout dua kali dengan token yang sama secara berurutan. (Ekspektasi Kedua: HTTP 401 - "Unauthorized" karena sudah dihapus pada test pertama).
+- **[ ] Skenario Gagal (Tanpa Header Auth):** Meminta logout tanpa mengirimkan header `Authorization`. (Ekspektasi: HTTP 401 - "Unauthorized")
+- **[ ] Skenario Gagal (Token Tidak Valid):** Meminta logout dengan menggunakan header `Authorization: Bearer <token-yang-salah>`. (Ekspektasi: HTTP 401 - "Unauthorized")
