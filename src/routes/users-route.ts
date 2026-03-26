@@ -21,7 +21,12 @@ export const usersRoute = new Elysia({ prefix: '/api/users' })
       email: t.String({ format: 'email' }),
       password: t.String(),
       phone: t.String(),
-    })
+    }),
+    detail: {
+      tags: ['Users'],
+      summary: 'Registrasi User Baru',
+      description: 'Mendaftarkan pengguna baru ke sistem.'
+    }
   })
   .post('/login', async ({ body, set }) => {
     try {
@@ -40,38 +45,47 @@ export const usersRoute = new Elysia({ prefix: '/api/users' })
     body: t.Object({
       email: t.String({ format: 'email' }),
       password: t.String(),
-    })
+    }),
+    detail: {
+      tags: ['Users'],
+      summary: 'Login User',
+      description: 'Masuk ke sistem dan mendapatkan token sesi.'
+    }
   })
-  .get('/current', async ({ headers, set }) => {
+  .derive(({ headers }) => {
+    const authHeader = headers['authorization'];
+    return {
+      token: authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
+    };
+  })
+  .get('/current', async ({ token, set }) => {
     try {
-      const authHeader = headers['authorization'];
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        set.status = 401;
-        return { error: 'Unauthorized' };
-      }
-
-      const token = authHeader.substring(7);
-      const result = await usersService.getCurrentUser(token);
+      const result = await usersService.getCurrentUser(token!);
       return result;
     } catch (error: any) {
       set.status = 401;
       return { error: 'Unauthorized' };
     }
+  }, {
+    detail: {
+      tags: ['Users'],
+      summary: 'Ambil Profil User Aktif',
+      description: 'Mendapatkan data profil user berdasarkan token sesi.'
+    }
   })
-  .delete('/logout', async ({ headers, set }) => {
+  .delete('/logout', async ({ token, set }) => {
     try {
-      const authHeader = headers['authorization'];
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        set.status = 401;
-        return { error: 'Unauthorized' };
-      }
-
-      const token = authHeader.substring(7);
-      const result = await usersService.logoutUser(token);
+      const result = await usersService.logoutUser(token!);
       return result;
     } catch (error: any) {
       set.status = 401;
       return { error: 'Unauthorized' };
+    }
+  }, {
+    detail: {
+      tags: ['Users'],
+      summary: 'Logout User',
+      description: 'Mengakhiri sesi dan menghapus token dari database.'
     }
   });
 
