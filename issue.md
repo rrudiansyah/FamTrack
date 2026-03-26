@@ -1,40 +1,76 @@
-# Perencanaan: Pembuatan Unit Test API (ElysiaJS & Bun Test)
+# Perencanaan: Penambahan Fitur Swagger API Documentation
 
 ## Deskripsi Tugas
-Dibutuhkan implementasi *Unit Testing* yang komprehensif untuk seluruh API endpoint yang sudah tersedia di aplikasi FamTrack. Pengujian ini bertujuan untuk memastikan semua fungsionalitas utama (*registration, login, get current user, logout*) berjalan dengan stabil dan sesuai ekspektasi ketika menerima berbagai *input*, baik yang *valid* maupun *invalid*.
+Dibutuhkan implementasi Swagger UI untuk dokumentasi interaktif seluruh API yang ada di aplikasi FamTrack. Tujuannya adalah agar *user* lain atau *front-end developer* yang ingin menggunakan API di aplikasi ini dapat dengan mudah melihat spesifikasi *endpoint* (URL, metode HTTP, struktur *request body*, dan *header* yang dibutuhkan) serta dapat langsung mengujinya melalui antarmuka browser tanpa harus murni menggunakan cURL/Postman dari nol.
 
 ## Persyaratan Teknis
-- **Lokasi File Test:** Semua file test harus diletakkan di dalam folder `tests/` di *root* proyek.
-- **Framework Test:** Menggunakan standar bawaan Bun yaitu `bun:test` (via command `bun test`).
-- **Data Konsisten:** **Penting!** Sebelum menjalankan setiap kode skenario pengujian, data pada *database* (seperti tabel `users` dan `sessions`) **harus dihapus terlebih dahulu** (bisa menggunakan *hooks* `beforeEach` atau aksi spesifik pada tiap test) agar pengujian satu dengan yang lainnya tidak saling bertabrakan dan menjamin konsistensi *state*.
+- Memanfaatkan _plugin_ resmi bawaan ekosistem framework saat ini: `@elysiajs/swagger`.
+- Antarmuka (UI) Swagger harus di-_expose_ atau dapat diakses melalui rute `/swagger`.
+- Semua *endpoint* Users (`/api/users/*`) sudah otomatis terdeteksi karena ElysiaJS menggunakan pustaka _TypeBox_, namun harus dikelompokkan biar rapi.
 
 ---
 
-## Daftar Skenario Pengujian yang Harus Diimplementasikan
+## Tahapan Implementasi (Panduan Detail untuk Junior Programmer / AI)
 
-Berikut adalah daftar skenario yang harus di-_cover_ oleh *programmer* yang akan mengerjakan tiket ini. **Tidak perlu panduan kode detail**, cukup penuhi skenario-skenario berikut menggunakan fungsi bawaan `fetch`/App Elysia:
+Untuk mengimplementasikan fitur ini, jalankan langkah-langkah sistematis berikut:
 
-### 1. API: Registrasi User (`POST /api/users`)
-- **[ ] Skenario Sukses:** Mendaftar dengan data lengkap dan nama maksimal 255 karakter. (Ekspektasi: HTTP 201)
-- **[ ] Skenario Gagal (Email Kembar):** Mendaftar menggunakan email yang sudah ada di database. (Ekspektasi: HTTP 400 - "Email sudah terdaftar")
-- **[ ] Skenario Gagal (Validasi Nama >255 Karakter):** Mendaftar dengan panjang karakter `name` melebihi 255 karakter. (Ekspektasi: HTTP 422 - validasi error).
-- **[ ] Skenario Gagal (Validasi Email Invalid):** Mendaftar dengan format email yang salah. (Ekspektasi: HTTP 422 - validasi error).
-- **[ ] Skenario Gagal (Payload Kosong/Kurang):** Mengirim *request body* tanpa salah satu properti wajib (misal tanpa `password`). (Ekspektasi: HTTP 422 - validasi error).
+### Langkah 1: Instalasi Dependensi Swagger
+Buka terminal pada direktori proyek utama, lalu instal *plugin* Swagger untuk Elysia:
+```bash
+bun add @elysiajs/swagger
+```
 
-### 2. API: Login User (`POST /api/users/login`)
-- **[ ] Skenario Sukses:** Login menggunakan *email* dan *password* yang benar. Pastikan respon berisi *token JWT/UUID*. (Ekspektasi: HTTP 200)
-- **[ ] Skenario Gagal (Email Tidak Ditemukan):** Login dengan email yang belum pernah didaftarkan. (Ekspektasi: HTTP 401 - "Email atau password salah")
-- **[ ] Skenario Gagal (Password Salah):** Login dengan email yang terdaftar tapi password salah. (Ekspektasi: HTTP 401 - "Email atau password salah")
-- **[ ] Skenario Gagal (Invalid Payload):** Mengirim payload login tanpa format *email* yang benar. (Ekspektasi: HTTP 422 - validasi error).
+### Langkah 2: Daftarkan Plugin di Entry Point Utama
+Buka file **`src/index.ts`**.
+1. Lakukan *import* modul Swagger di bagian atas:
+   ```typescript
+   import { swagger } from '@elysiajs/swagger';
+   ```
+2. Sisipkan pemanggilan `.use(swagger(...))` ke dalam *instance* aplikasi Elysia (`app`). **Pastikan pemanggilan `.use(swagger())` diletakkan lebih atas / sebelum** pemanggilan `.use(usersRoute)`. Ini penting agar Swagger mampu memindai semua rute di bawahnya.
+   
+   Contoh penerapan kode:
+   ```typescript
+   export const app = new Elysia()
+     .use(swagger({
+       documentation: {
+         info: {
+           title: 'FamTrack API',
+           version: '1.0.0',
+           description: 'API Documentation for FamTrack Application'
+         }
+       }
+     }))
+     .get('/', () => 'Hello dari Elysia')
+     .use(usersRoute)
+     .listen(3000);
+   ```
 
-### 3. API: Dapatkan User Saat Ini (`GET /api/users/current`)
-- **[ ] Skenario Sukses:** Meminta data user lengkap dengan *header* `Authorization: Bearer <token-asli>` setelah berhasil login. (Ekspektasi: HTTP 200 dengan data user dikembalikan)
-- **[ ] Skenario Gagal (Tanpa Header Auth):** Meminta data tanpa mengirimkan header `Authorization` sama sekali. (Ekspektasi: HTTP 401 - "Unauthorized")
-- **[ ] Skenario Gagal (Token Tidak Valid / Kedaluwarsa):** Meminta data dengan header `Authorization: Bearer <token-acak-salah>`. (Ekspektasi: HTTP 401 - "Unauthorized")
-- **[ ] Skenario Gagal (Format Header Salah):** Mengirim token tanpa awalan "Bearer " (contoh: `Authorization: <token>`). (Ekspektasi: HTTP 401 - "Unauthorized")
+### Langkah 3: Beri Label / Metadata pada Setiap Endpoint (Opsional tapi Krusial)
+*Secara default, Elysia otomatis membuat skema Swagger berdasarkan tipe parameter (TypeBox). Namun rute akan terlihat berantakan.* Untuk merapikannya, buka **`src/routes/users-route.ts`** dan berikan properti `detail` pada tiap rute.
 
-### 4. API: Logout User (`DELETE /api/users/logout`)
-- **[ ] Skenario Sukses:** Melakukan aksi logout menggunakan token yang baru saja dibuat saat login. Memastikan balikan sukses, dan *record session* divalidasi kehapus dari tabel database. (Ekspektasi: HTTP 200 - "OK")
-- **[ ] Skenario Gagal (Double Logout):** Melakukan aksi logout dua kali dengan token yang sama secara berurutan. (Ekspektasi Kedua: HTTP 401 - "Unauthorized" karena sudah dihapus pada test pertama).
-- **[ ] Skenario Gagal (Tanpa Header Auth):** Meminta logout tanpa mengirimkan header `Authorization`. (Ekspektasi: HTTP 401 - "Unauthorized")
-- **[ ] Skenario Gagal (Token Tidak Valid):** Meminta logout dengan menggunakan header `Authorization: Bearer <token-yang-salah>`. (Ekspektasi: HTTP 401 - "Unauthorized")
+Contoh pada rute *Registrasi User* (`.post('/')`):
+Tambahkan `detail` di dalam objek parameter _options_ (sebelah definisi `body`):
+```typescript
+  }, {
+    body: t.Object({
+      name: t.String({ maxLength: 255 }),
+      email: t.String({ format: 'email' }),
+      // ...
+    }),
+    detail: {
+      tags: ['Users'], // Untuk mengelompokkan kategori API
+      summary: 'Registrasi User Baru', // Judul endpoint
+      description: 'Mendaftarkan pengguna baru dengan email dan password.'
+    }
+  })
+```
+Lakukan penambahan atribut `detail:` (tags dan summary) yang serupa pada endpoint `.post('/login')`, `.get('/current')`, dan `.delete('/logout')`.
+
+### Langkah 4: Pengujian Lokal
+1. Jalankan aplikasi seperti biasa:
+   ```bash
+   bun run dev
+   ```
+2. Buka *browser* pilihan Anda dan kunjungi URL: `http://localhost:3000/swagger`.
+3. Periksa tampilan UI Swagger yang muncul, pastikan nama API yang Anda konfigurasi di `src/index.ts` sudah tergambar dengan benar.
+4. Coba tes salah satu endpoint (misal: registrasi atau login) langsung menggunakan tombol *"Try it out"* di dalam UI-nya.
