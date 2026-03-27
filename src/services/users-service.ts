@@ -3,6 +3,14 @@ import { users, sessions } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 export const usersService = {
+  /**
+   * Mendaftarkan pengguna baru ke dalam sistem.
+   * Melakukan pengecekan ketersediaan email, melakukan hashing pada password,
+   * dan menyematkan data pengguna ke dalam tabel 'users'.
+   * 
+   * @param payload Objek yang berisi informasi name, email, password, dan phone.
+   * @returns Pesan keberhasilan jika registrasi sukses.
+   */
   async register(payload: any) {
     const { name, email, password, phone } = payload;
 
@@ -32,6 +40,14 @@ export const usersService = {
     return { data: 'Registrasi Berhasil' };
   },
 
+  /**
+   * Mengautentikasi pengguna berdasarkan email dan password.
+   * Memvalidasi keberadaan email, memverifikasi kesesuaian password (hash),
+   * dan membuat token sesi (UUID) unik yang disimpan ke dalam tabel 'sessions'.
+   * 
+   * @param payload Objek yang berisi informasi email dan password.
+   * @returns Token akses (Bearer) jika login berhasil.
+   */
   async login(payload: any) {
     const { email, password } = payload;
 
@@ -58,6 +74,14 @@ export const usersService = {
     return { data: token };
   },
 
+  /**
+   * Mengambil data profil pengguna yang saat ini sedang login.
+   * Mencocokkan token akses yang diberikan dengan token di tabel 'sessions',
+   * kemudian mengambil relasi data profil pengguna dari tabel 'users'.
+   * 
+   * @param token Token UUID akses pengguna dari header Authorization.
+   * @returns Data profil pengguna (id, name, email, createdAt).
+   */
   async getCurrentUser(token: string) {
     if (!token) {
       throw new Error('Unauthorized');
@@ -84,6 +108,14 @@ export const usersService = {
     return { data: user };
   },
 
+  /**
+   * Mengakhiri sesi pengguna saat ini.
+   * Mencari sesi aktif berdasarkan token yang diberikan dan
+   * menghapusnya dari tabel 'sessions' sehingga token tidak berlaku lagi.
+   * 
+   * @param token Token UUID akses pengguna dari header Authorization.
+   * @returns Pesan sukses ('OK') jika proses logout berhasil.
+   */
   async logoutUser(token: string) {
     if (!token) {
       throw new Error('Unauthorized');
